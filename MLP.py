@@ -1,4 +1,5 @@
 import time
+import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import Sequential
@@ -7,6 +8,7 @@ from keras.optimizers import SGD
 from keras.utils import np_utils
 from keras.datasets import mnist
 from keras.callbacks import EarlyStopping, ModelCheckpoint
+from sklearn.metrics import confusion_matrix
 
 
 np.random.seed(15)
@@ -42,6 +44,7 @@ test_features = preprocess_data(test_features)
 
 
 # convert class labels to one-hot encoded
+y_test = test_labels
 train_labels = np_utils.to_categorical(train_labels, num_classes)
 test_labels = np_utils.to_categorical(test_labels, num_classes)
 
@@ -134,7 +137,7 @@ def accuracy(model, X_test, y_test):
     true_label = np.argmax(y_test, axis=1)
     num_correct = np.sum(predicted_label == true_label)
     accuracy = float(num_correct)/out.shape[0]
-    return 100*accuracy
+    return 100*accuracy, predicted_label
 
 
 # Train with early-stopping
@@ -142,28 +145,93 @@ mlp_weights = 'weightsMLP.h5'
 
 model = MLP(70)
 
-#model.load_weights('weightsMLP.h5')
+model.load_weights('weightsMLP_norm_0.1_sig_70neuronios.h5')
 
-model.compile(optimizer=SGD(lr=0.1), loss='categorical_crossentropy', metrics=['accuracy'])
+# model.compile(optimizer=SGD(lr=0.1), loss='categorical_crossentropy', metrics=['accuracy'])
+#
+# #  Early stopping
+# earlyStopping = EarlyStopping(monitor='val_loss', min_delta=0.01, patience=20, verbose=0, mode='auto')
+# checkpoint = ModelCheckpoint(mlp_weights, monitor='val_loss', verbose=0, save_best_only=True, mode='auto')
+# callbacks_list = [earlyStopping, checkpoint]
+#
+#
+# # Show the model architecture
+# print('#############################################')
+# model.summary()
+# print('#############################################')
+#
+# history = model.fit(train_features, train_labels, batch_size=64, \
+#                                    nb_epoch=100, callbacks=callbacks_list, verbose=2, validation_split=0.2)
+#
+#
+# plot_model_history(history)
 
-#  Early stopping
-earlyStopping = EarlyStopping(monitor='val_loss', min_delta=0.01, patience=20, verbose=0, mode='auto')
-checkpoint = ModelCheckpoint(mlp_weights, monitor='val_loss', verbose=0, save_best_only=True, mode='auto')
-callbacks_list = [earlyStopping, checkpoint]
+acc, y_pred = accuracy(model, test_features, test_labels)
 
+print("Accuracy on test samples is: %0.2f" % acc)
 
-# Show the model architecture
-print('#############################################')
-model.summary()
-print('#############################################')
+class_names = ['Zero','Um','Dois','Três','Quatro','Cinco','Seis','Sete','Oito','Nove']
 
-history = model.fit(train_features, train_labels, batch_size=64, \
-                                   nb_epoch=100, callbacks=callbacks_list, verbose=2, validation_split=0.2)
+def plot_confusion_matrix(cm, classes,
+	                      normalize=False,
+	                      title='Matriz de Confusão',
+	                      cmap=plt.cm.Greens):#Blues):
+	"""
+	This function prints and plots the confusion matrix.
+	Normalization can be applied by setting `normalize=True`.
+	"""
+#    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+#    plt.title(title)
+#    plt.colorbar()
+#    tick_marks = np.arange(len(classes))
+#    plt.xticks(tick_marks, classes, rotation=45)
+#    plt.yticks(tick_marks, classes)
 
+	if normalize:
+	    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+	    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+	    plt.title(title)
+	    plt.colorbar()
+	    tick_marks = np.arange(len(classes))
+	    plt.xticks(tick_marks, classes, rotation=45)
+	    plt.yticks(tick_marks, classes)
+	    print("Matriz de confusão normalizada")
+	else:
+		plt.imshow(cm, interpolation='nearest', cmap=cmap)
+		plt.title(title)
+		plt.colorbar()
+		tick_marks = np.arange(len(classes))
+		plt.xticks(tick_marks, classes, rotation=45)
+		plt.yticks(tick_marks, classes)
+		print('Matriz de confusão não normalizada')
 
-plot_model_history(history)
+	print(cm)
 
-print("Accuracy on test samples is: %0.2f" % accuracy(model, test_features, test_labels))
+	thresh = cm.max() / 2.
+	for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+	    plt.text(j, i, round(cm[i, j],2),
+	             horizontalalignment="center",
+	             color="white" if round(cm[i, j],2) > thresh else "black")
+
+	plt.tight_layout()
+	plt.ylabel('Rótulo Verdadeiro')
+	plt.xlabel('Rótulo Previsto')
+
+# Compute confusion matrix
+cnf_matrix = confusion_matrix(y_test, y_pred)
+np.set_printoptions(precision=2)
+
+# Plot non-normalized confusion matrix
+plt.figure()
+plot_confusion_matrix(cnf_matrix, classes=class_names,
+	                  title='Matriz de confusão não normalizada')
+
+# Plot normalized confusion matrix
+plt.figure()
+plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,
+	                  title='Matriz de confusão normalizada')
+
+plt.show()
 
 
 
